@@ -1,7 +1,7 @@
 #include "aabb.h"
 #include <limits>
 
-void project(vector<Vec3f> points, Vec3f axis,
+void project(const vector<Vec3f>& points, const Vec3f& axis,
     double& min, double& max);
 
 
@@ -112,8 +112,7 @@ bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2
 {
     double triangleMin, triangleMax;
     double boxMin, boxMax;
-    Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
-
+    
     // Test the box normals (x-, y- and z-axes)
     Vec3f boxNormals[3] = {
         Vec3f(1,0,0),
@@ -121,17 +120,23 @@ bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2
         Vec3f(0,0,1)
     };
 
+	vector<Vec3f> triangle_vertices = { p0, p1, p2 };
+
     for (int i = 0; i < 3; i++)
     {
         Vec3f n = boxNormals[i];
-        project(vector<Vec3f>{ p0, p1, p2 }, boxNormals[i], triangleMin, triangleMax);
+        project(triangle_vertices, boxNormals[i], triangleMin, triangleMax);
         if (triangleMax < min_corner[i] || triangleMin > max_corner[i])
             return false; // No intersection possible.
     }
 
+	Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
+
+	vector<Vec3f> bbox_vertices = getVertices();
+
     // Test the triangle normal
     double triangleOffset = dot(triangle_normal, p0);
-    project(getVertices(), triangle_normal, boxMin, boxMax);
+    project(bbox_vertices, triangle_normal, boxMin, boxMax);
     if (boxMax < triangleOffset || boxMin > triangleOffset)
         return false; // No intersection possible.
 
@@ -147,22 +152,21 @@ bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2
         {
             // The box normals are the same as it's edge tangents
             Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
-            project(getVertices(), axis, boxMin, boxMax);
+            project(bbox_vertices, axis, boxMin, boxMax);
             project(vector<Vec3f>{ p0, p1, p2 }, axis, triangleMin, triangleMax);
             if (boxMax < triangleMin || boxMin > triangleMax)
                 return false; // No intersection possible
         }
-
     // No separating axis found.
     return true;
 }
 
-void project(vector<Vec3f> points, Vec3f axis,
+void project(const vector<Vec3f>& points, const Vec3f& axis,
     double& min, double& max)
 {
     min = numeric_limits<double>::max();
     max = numeric_limits<double>::min();
-    for(Vec3f p: points)
+    for(const Vec3f& p: points)
     {
         double val = dot(axis,p);
         if (val < min) min = val;

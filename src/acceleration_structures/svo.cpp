@@ -1,8 +1,6 @@
 #include "svo.h"
 #include <chrono>
 
-double chrono1;
-double chrono2;
 
 SVO::SVO() : max_depth(0) {};
 
@@ -56,7 +54,6 @@ SVO::SVO(const vector<Mesh*>& meshes, size_t max_depth, bool verbose) :
 		std::cout << "nodes: " << n_nodes << std::endl;
 	}
 
-
 	compressSVO(nodes_ptr, verbose);
 
 }
@@ -74,15 +71,15 @@ uint SVO::computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner,
 			for (bool k : {0, 1}) {
 				Vec3f min_corner_child = min_corner + Vec3f(i, j, k) * half_diagonal;
 				AABB bbox_child = AABB(min_corner_child, min_corner_child + half_diagonal);
-
 				vector<pair<int, int>> primitives_child;
 				//primitives_child.reserve(primitives.size());
 				for (int i = 0; i < primitives.size(); i++) {
-					const Vec3i& f = meshes[primitives[i].first]->get_face(primitives[i].second);
-
-					if (bbox_child.triangleIntersecton(meshes[primitives[i].first]->get_vertice(f[0]),
-						meshes[primitives[i].first]->get_vertice(f[1]),
-						meshes[primitives[i].first]->get_vertice(f[2]))) {
+					const Mesh* mesh = meshes[primitives[i].first];
+					const Vec3i& f = mesh->get_face(primitives[i].second);
+					bool intersect = bbox_child.triangleIntersecton(mesh->get_vertice(f[0]),
+						mesh->get_vertice(f[1]),
+						mesh->get_vertice(f[2]));
+					if (intersect) {
 						primitives_child.push_back(primitives[i]);
 					}
 				}
@@ -106,7 +103,6 @@ uint SVO::computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner,
 
 	if (depth < max_depth - 1)
 		nodes_ptr[depth - 1].push_back(node_ptr); //Position of the node
-	
 	return node_ptr;
 };
 

@@ -334,7 +334,19 @@ std::istream & operator>> (std::istream & input, Vec3<T> & v) {
   return input;
 }
 
-float clamp(const float& x, const float& min, const float& max);
+template<class T>
+T clamp(const T& x, const T& min, const T& max) {
+    if (x < min)
+        return min;
+    if (x > max)
+        return max;
+    return x;
+};
+
+template<class T>
+Vec3<T> clamp(const Vec3<T>& p, const T& min, const T& max) {
+    return Vec3<T>(clamp(p[0], min, max), clamp(p[1], min, max), clamp(p[2], min, max));
+};
 
 typedef Vec3<float> Vec3f;
 typedef Vec3<double> Vec3d;

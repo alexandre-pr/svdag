@@ -11,7 +11,7 @@ size_t max_depth = 9;
 void outputImage();
 
 int main(int, char* argv[]) {
-	std::string offFilename = "../../assets/example_lowres.off";
+	std::string offFilename = "../../assets/example_highres.off";
 	std::string outputFilename = "../../output/output.ppm";
 	std::vector<Mesh*> meshes;
 	meshes.push_back(new Mesh());
@@ -24,7 +24,7 @@ int main(int, char* argv[]) {
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
 	svo = SVO(meshes, max_depth);
-	std::cout << svo.leaves[0] << std::endl << svo.leaves[1] << std::endl;
+	
 	auto t2 = std::chrono::high_resolution_clock::now();
 	std::cout << "process took:"
 		<< std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
@@ -103,6 +103,7 @@ void outputImage() {
 		}
 	}
 	image.savePPM("../../output/output.ppm");
+	getchar();
 }
 
 

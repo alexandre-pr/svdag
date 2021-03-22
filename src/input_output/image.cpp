@@ -46,7 +46,7 @@ void Image::fillBackground(const Vec3f& color1, const Vec3f& color2) {
 }
 
 void Image::setPixelColor(int i, int j, const Vec3f& pixel_color) {
-	color[height * i + j] = pixel_color;
+	color[height * i + j] = clamp(pixel_color,0.f,1.f);
 }
 
 const Vec3f& Image::getPixelColor(int i, int j) const {
