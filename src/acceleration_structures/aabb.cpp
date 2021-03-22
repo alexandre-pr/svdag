@@ -149,7 +149,7 @@ bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2
             Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
             project(getVertices(), axis, boxMin, boxMax);
             project(vector<Vec3f>{ p0, p1, p2 }, axis, triangleMin, triangleMax);
-            if (boxMax <= triangleMin || boxMin >= triangleMax)
+            if (boxMax < triangleMin || boxMin > triangleMax)
                 return false; // No intersection possible
         }
 

@@ -6,12 +6,11 @@
 #include <stack>
 
 SVO svo;
-size_t max_depth = 6;
+size_t max_depth = 9;
 
 void outputImage();
 
 int main(int, char* argv[]) {
-
 	std::string offFilename = "../../assets/example_lowres.off";
 	std::string outputFilename = "../../output/output.ppm";
 	std::vector<Mesh*> meshes;
@@ -25,11 +24,11 @@ int main(int, char* argv[]) {
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
 	svo = SVO(meshes, max_depth);
-	
+	std::cout << svo.leaves[0] << std::endl << svo.leaves[1] << std::endl;
 	auto t2 = std::chrono::high_resolution_clock::now();
 	std::cout << "process took:"
 		<< std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
-		<< " milliseconds\n";
+		<< " milliseconds\n" << std::endl;
 
 	size_t size = 0;
 	for (size_t i = 0; i < svo.nodes.size(); i++) {
@@ -60,29 +59,38 @@ void outputImage() {
 		Vec3i offset = n.second;
 
 
-		uint childmask = svo.nodes[depth][idx];
-		if (depth == max_depth - 1) {// Node before leaves
-			for (bool i : {0, 1}) {
-				for (bool j : {0, 1}) {
-					if (get_bit(childmask, i + j * 2)) {
-						Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
-						float value = max(color[0], (float)offset[2] / resolution);
-						image.setPixelColor(i+offset[0], j+offset[1], value * white);
-					}
-					if (get_bit(childmask, i + j * 2 + 4)) {
-						Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
-						float value = max(color[0], (float)(1 + offset[2])/resolution);
-						image.setPixelColor(i+offset[0], j+offset[1], value * white);
+		if (depth == max_depth - 2) {// Node is a leaf
+			uint64_t leaf = svo.leaves[idx];
+			for (bool i : {1, 0}) { // Reverse enumeration compared to encoding
+				for (bool j : {1, 0}) {
+					for (bool k : {1, 0}) {
+
+						uchar childmask = leaf;
+						for (bool ic : {0, 1}) {
+							for (bool jc : {0, 1}) {
+								float value = image.getPixelColor(2 * i + ic + offset[0], 2 * j + jc + offset[1])[0];
+								if (get_bit(childmask, 4 * ic + 2 * jc))
+									value = max(value, (float)(offset[2] + 2 * k) / resolution);
+								if (get_bit(childmask, 4 * ic + 2 * jc + 1))
+									value = max(value, (float)(offset[2] + 2 * k + 1) / resolution);
+								image.setPixelColor(2 * i + ic + offset[0], 2 * j + jc + offset[1], value * white);
+
+							}
+
+						}
+						leaf = leaf >> 8;
 					}
 				}
 			}
 		}
+				
 		else {
+		uint childmask = svo.nodes[depth][idx];
 			int ptr_offset = 1;
 			for (bool i : {0, 1}) {
 				for (bool j : {0, 1}) {
 					for (bool k : {0, 1}) {
-						if (get_bit(childmask, i + j * 2 + k * 4)) {
+						if (get_bit(childmask, 4 * i + j * 2 + k)) {
 							stack.push(
 								node(
 									ipair(depth + 1, svo.nodes[depth][idx+ptr_offset]),
@@ -96,3 +104,19 @@ void outputImage() {
 	}
 	image.savePPM("../../output/output.ppm");
 }
+
+
+//for (bool i : {0, 1}) {
+//	for (bool j : {0, 1}) {
+//		if (get_bit(childmask, i + j * 2)) {
+//			Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
+//			float value = max(color[0], (float)offset[2] / resolution);
+//			image.setPixelColor(i + offset[0], j + offset[1], value * white);
+//		}
+//		if (get_bit(childmask, i + j * 2 + 4)) {
+//			Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
+//			float value = max(color[0], (float)(1 + offset[2]) / resolution);
+//			image.setPixelColor(i + offset[0], j + offset[1], value * white);
+//		}
+//	}
+//}

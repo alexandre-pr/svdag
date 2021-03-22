@@ -28,14 +28,15 @@ public:
 
     SVO(const vector<Mesh*>& meshes, size_t max_depth = 8, bool verbose=true);
 
-    uint computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& half_diagonal, const std::vector<pair<int, int>>& primitives, size_t depth); 
+    uint computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& half_diagonal, const std::vector<pair<int, int>>& primitives, size_t depth, vector<vector<uint>>& nodes_ptr); 
     // Return the index of the added node (in the depth-th vector of data)
+
+    void compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose);
 
     AABB bbox; // Main bbox: defines the main corners
     int max_depth;
     vector<vector<uint>> nodes;
-    vector<bool> leaves;
+    vector<uint64_t> leaves;
 
     size_t n_nodes=0;
-    size_t n_leaves=0;
 };
