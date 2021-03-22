@@ -20,6 +20,7 @@ vector<Vec3f> AABB::getVertices() const {
     result.push_back(Vec3f(max_corner[0], min_corner[1], max_corner[2]));
     result.push_back(Vec3f(max_corner[0], max_corner[1], min_corner[2]));
     result.push_back(max_corner);
+	return result;
 };
 
 AABB AABB::get_bbox(const vector<Mesh*>& meshes, PrimitiveIterator begin, PrimitiveIterator end) {
@@ -107,7 +108,7 @@ bool AABB::ray_intersection(const Ray& ray, Vec3f& entry, Vec3f& exit, float& t)
 }
 
 //https://stackoverflow.com/questions/17458562/efficient-aabb-triangle-intersection-in-c-sharp
-bool isIntersecting(AABB box, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2)
+bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const
 {
     double triangleMin, triangleMax;
     double boxMin, boxMax;
@@ -124,13 +125,13 @@ bool isIntersecting(AABB box, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2)
     {
         Vec3f n = boxNormals[i];
         project(vector<Vec3f>{ p0, p1, p2 }, boxNormals[i], triangleMin, triangleMax);
-        if (triangleMax < box.min_corner[i] || triangleMin > box.max_corner[i])
+        if (triangleMax < min_corner[i] || triangleMin > max_corner[i])
             return false; // No intersection possible.
     }
 
     // Test the triangle normal
     double triangleOffset = dot(triangle_normal, p0);
-    project(box.getVertices(), triangle_normal, boxMin, boxMax);
+    project(getVertices(), triangle_normal, boxMin, boxMax);
     if (boxMax < triangleOffset || boxMin > triangleOffset)
         return false; // No intersection possible.
 
@@ -146,7 +147,7 @@ bool isIntersecting(AABB box, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2)
         {
             // The box normals are the same as it's edge tangents
             Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
-            project(box.getVertices(), axis, boxMin, boxMax);
+            project(getVertices(), axis, boxMin, boxMax);
             project(vector<Vec3f>{ p0, p1, p2 }, axis, triangleMin, triangleMax);
             if (boxMax <= triangleMin || boxMin >= triangleMax)
                 return false; // No intersection possible

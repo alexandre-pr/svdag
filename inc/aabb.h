@@ -19,6 +19,8 @@ public:
 
 	bool ray_intersection(const Ray& ray, Vec3f& entry, Vec3f& exit, float& t) const;
 
+	bool triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const;
+
 	vector<Vec3f> getVertices() const;
 
 	static AABB get_bbox(const vector<Mesh*>& meshes);

@@ -318,7 +318,7 @@ inline Vec3<T> projectOntoVector (const Vec3<T> & v1, const Vec3<T> & v2) {
 }
 
 template <class T>
-inline Vec3<T> operator * (const T &s, const Vec3<T> &P) {
+inline Vec3<T> operator* (const T &s, const Vec3<T> &P) {
   return (P * s);
 }
 

@@ -16,19 +16,26 @@ using uchar = unsigned char;
 
 class SVO {
 public:
-    inline vector<uint>& operator [](uint i) {
-        return data[i];
+    /*inline vector<uint>& operator [](uint i) {
+        return nodes[i];
     }
 
     inline const vector<uint>& operator [](uint i) const {
-        return data[i];
-    }
+        return nodes[i];
+    }*/
 
-    SVO(int depth, const Vec3f& min_corner, const Vec3f& max_corner);
+    SVO();
 
-    void compute_SVO(vector<Mesh*> meshes);
+    SVO(const vector<Mesh*>& meshes, size_t max_depth = 8, bool verbose=true);
 
-private:
-    vector<vector<uint>> data;
-    int depth;
+    uint computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& half_diagonal, const std::vector<pair<int, int>>& primitives, size_t depth); 
+    // Return the index of the added node (in the depth-th vector of data)
+
+    AABB bbox; // Main bbox: defines the main corners
+    int max_depth;
+    vector<vector<uint>> nodes;
+    vector<bool> leaves;
+
+    size_t n_nodes=0;
+    size_t n_leaves=0;
 };
