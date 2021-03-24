@@ -46,7 +46,7 @@ using node = pair<ipair, Vec3i>; // depth,idx + offset in 3D
 void outputImage() {
 	Vec3f black = Vec3f(0, 0, 0);
 	Vec3f white = Vec3f(1, 1, 1);
-	size_t resolution = pow(2, max_depth);
+	int resolution = (int)pow(2, max_depth);
 	Image image = Image(resolution, resolution, black);
 	stack<node> stack;
 	stack.push(node(ipair(0, 0), Vec3i()));
@@ -65,7 +65,7 @@ void outputImage() {
 				for (bool j : {1, 0}) {
 					for (bool k : {1, 0}) {
 
-						uchar childmask = leaf;
+						uchar childmask = (uchar)leaf;
 						for (bool ic : {0, 1}) {
 							for (bool jc : {0, 1}) {
 								float value = image.getPixelColor(2 * i + ic + offset[0], 2 * j + jc + offset[1])[0];
@@ -105,19 +105,3 @@ void outputImage() {
 	image.savePPM("../../output/output.ppm");
 	getchar();
 }
-
-
-//for (bool i : {0, 1}) {
-//	for (bool j : {0, 1}) {
-//		if (get_bit(childmask, i + j * 2)) {
-//			Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
-//			float value = max(color[0], (float)offset[2] / resolution);
-//			image.setPixelColor(i + offset[0], j + offset[1], value * white);
-//		}
-//		if (get_bit(childmask, i + j * 2 + 4)) {
-//			Vec3f color = image.getPixelColor(i + offset[0], j + offset[1]);
-//			float value = max(color[0], (float)(1 + offset[2]) / resolution);
-//			image.setPixelColor(i + offset[0], j + offset[1], value * white);
-//		}
-//	}
-//}

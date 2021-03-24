@@ -1,6 +1,9 @@
 #include "svo.h"
 #include <chrono>
 
+void project(const vector<Vec3f>& points, const Vec3f& axis,
+	double& min, double& max);
+float project_extent(const Vec3f& extent, const Vec3f& axis);
 
 SVO::SVO() : max_depth(0) {};
 
@@ -43,8 +46,6 @@ SVO::SVO(const vector<Mesh*>& meshes, size_t max_depth, bool verbose) :
 	}
 
 	if (verbose) {
-		std::cout << "done" << std::endl;
-	
 		size_t size = 0;
 		for (size_t i = 0; i < nodes.size(); i++) {
 			size += nodes[i].size() * 4;
@@ -55,6 +56,8 @@ SVO::SVO(const vector<Mesh*>& meshes, size_t max_depth, bool verbose) :
 	}
 
 	compressSVO(nodes_ptr, verbose);
+
+	//computeDAG(nodes_ptr, verbose);
 
 }
 
@@ -70,13 +73,14 @@ uint SVO::computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner,
 		for (bool j : {0, 1}) {
 			for (bool k : {0, 1}) {
 				Vec3f min_corner_child = min_corner + Vec3f(i, j, k) * half_diagonal;
-				AABB bbox_child = AABB(min_corner_child, min_corner_child + half_diagonal);
+				Vec3f center = min_corner_child + half_diagonal_child;
+				//AABB bbox_child = AABB(min_corner_child, min_corner_child + half_diagonal);
 				vector<pair<int, int>> primitives_child;
 				//primitives_child.reserve(primitives.size());
 				for (int i = 0; i < primitives.size(); i++) {
 					const Mesh* mesh = meshes[primitives[i].first];
 					const Vec3i& f = mesh->get_face(primitives[i].second);
-					bool intersect = bbox_child.triangleIntersecton(mesh->get_vertice(f[0]),
+					bool intersect = triangleIntersection(center, half_diagonal_child, mesh->get_vertice(f[0]),
 						mesh->get_vertice(f[1]),
 						mesh->get_vertice(f[2]));
 					if (intersect) {
@@ -95,7 +99,7 @@ uint SVO::computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner,
 			}
 		}
 	}
-	uint node_ptr = nodes[depth-1].size();
+	uint node_ptr = (uint)nodes[depth-1].size();
 	for (uint d : node) {
 		nodes[depth-1].push_back(d);
 		n_nodes++;
@@ -131,7 +135,7 @@ void SVO::compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose) {
 				}
 
 				// Updating pointer
-				nodes[max_depth - 3][node_ptr + ptr_offset] = leaves.size();
+				nodes[max_depth - 3][node_ptr + ptr_offset] = (uint)leaves.size();
 				leaves.push_back(leaf);
 				ptr_offset++;
 			};
@@ -143,8 +147,6 @@ void SVO::compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose) {
 	nodes.pop_back();
 
 	if (verbose) {
-		std::cout << "done" << std::endl;
-
 		size_t size = 0;
 		for (size_t i = 0; i < nodes.size(); i++) {
 			size += nodes[i].size() * 4;
@@ -160,4 +162,77 @@ void SVO::compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose) {
 		std::cout << "leaves: " << leaves.size() << std::endl;
 	}
 
+}
+
+
+//https://gdbooks.gitbooks.io/3dcollisions/content/Chapter4/aabb-triangle.html
+//Smart implementation that avoids redundant computations
+bool SVO::triangleIntersection(const Vec3f& center, const Vec3f& extent, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const {
+	double triangleMin=0, triangleMax=0;
+	double boxMin=0, boxMax=0;
+
+	// Test the box normals (x-, y- and z-axes)
+	Vec3f boxNormals[3] = {
+		Vec3f(1,0,0),
+		Vec3f(0,1,0),
+		Vec3f(0,0,1)
+	};
+
+	vector<Vec3f> triangle_vertices = { p0 - center, p1 - center, p2 - center};
+
+	for (int i = 0; i < 3; i++)
+	{
+		Vec3f n = boxNormals[i];
+		project(triangle_vertices, boxNormals[i], triangleMin, triangleMax);
+		if (triangleMax < -extent[i] || triangleMin > extent[i])
+			return false; // No intersection possible.
+	}
+
+	// Test the nine edge cross-products
+	Vec3f triangleEdges[3] = {
+		p0 - p1,
+		p1 - p2,
+		p2 - p0
+	};
+
+	for (int i = 0; i < 3; i++)
+		for (int j = 0; j < 3; j++)
+		{
+			// The box normals are the same as it's edge tangents
+			Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
+			float r = project_extent(extent, axis);
+			project(triangle_vertices, axis, triangleMin, triangleMax);
+			if (r < triangleMin || -r > triangleMax)
+				return false; // No intersection possible
+		}
+
+	Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
+
+	// Test the triangle normal
+	double triangleOffset = dot(triangle_normal, triangle_vertices[0]);
+	float r = project_extent(extent, triangle_normal);
+	if (r < triangleOffset || -r > triangleOffset)
+		return false; // No intersection possible.
+	
+	// No separating axis found.
+	return true;
+}
+
+void project(const vector<Vec3f>& points, const Vec3f& axis,
+	double& min, double& max)
+{
+	min = numeric_limits<double>::max();
+	max = numeric_limits<double>::min();
+	for (const Vec3f& p : points)
+	{
+		double val = dot(axis, p);
+		if (val < min) min = val;
+		if (val > max) max = val;
+	}
+}
+
+float project_extent(const Vec3f& extent, const Vec3f& axis) {
+	return extent[0] * abs(dot(Vec3f(1,0,0), axis)) +
+		extent[1] * abs(dot(Vec3f(0, 1, 0), axis))  +
+		extent[2] * abs(dot(Vec3f(0, 0, 1), axis));
 }

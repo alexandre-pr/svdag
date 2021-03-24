@@ -32,9 +32,12 @@ public:
     // Return the index of the added node (in the depth-th vector of data)
 
     void compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose);
+    void computeDAG(const vector<vector<uint>>& nodes_ptr, bool verbose);
+
+    bool triangleIntersection(const Vec3f& center, const Vec3f& extent, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const;
 
     AABB bbox; // Main bbox: defines the main corners
-    int max_depth;
+    size_t max_depth;
     vector<vector<uint>> nodes;
     vector<uint64_t> leaves;
 

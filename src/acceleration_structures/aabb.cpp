@@ -1,9 +1,6 @@
 #include "aabb.h"
 #include <limits>
 
-void project(const vector<Vec3f>& points, const Vec3f& axis,
-    double& min, double& max);
-
 
 AABB::AABB() {};
 
@@ -107,69 +104,56 @@ bool AABB::ray_intersection(const Ray& ray, Vec3f& entry, Vec3f& exit, float& t)
 	return true;
 }
 
-//https://stackoverflow.com/questions/17458562/efficient-aabb-triangle-intersection-in-c-sharp
-bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const
-{
-    double triangleMin, triangleMax;
-    double boxMin, boxMax;
-    
-    // Test the box normals (x-, y- and z-axes)
-    Vec3f boxNormals[3] = {
-        Vec3f(1,0,0),
-        Vec3f(0,1,0),
-        Vec3f(0,0,1)
-    };
-
-	vector<Vec3f> triangle_vertices = { p0, p1, p2 };
-
-    for (int i = 0; i < 3; i++)
-    {
-        Vec3f n = boxNormals[i];
-        project(triangle_vertices, boxNormals[i], triangleMin, triangleMax);
-        if (triangleMax < min_corner[i] || triangleMin > max_corner[i])
-            return false; // No intersection possible.
-    }
-
-	Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
-
-	vector<Vec3f> bbox_vertices = getVertices();
-
-    // Test the triangle normal
-    double triangleOffset = dot(triangle_normal, p0);
-    project(bbox_vertices, triangle_normal, boxMin, boxMax);
-    if (boxMax < triangleOffset || boxMin > triangleOffset)
-        return false; // No intersection possible.
-
-    // Test the nine edge cross-products
-    Vec3f triangleEdges[3] = {
-        p0 - p1,
-        p1 - p2,
-        p2 - p0
-    };
-
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-        {
-            // The box normals are the same as it's edge tangents
-            Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
-            project(bbox_vertices, axis, boxMin, boxMax);
-            project(vector<Vec3f>{ p0, p1, p2 }, axis, triangleMin, triangleMax);
-            if (boxMax < triangleMin || boxMin > triangleMax)
-                return false; // No intersection possible
-        }
-    // No separating axis found.
-    return true;
-}
-
-void project(const vector<Vec3f>& points, const Vec3f& axis,
-    double& min, double& max)
-{
-    min = numeric_limits<double>::max();
-    max = numeric_limits<double>::min();
-    for(const Vec3f& p: points)
-    {
-        double val = dot(axis,p);
-        if (val < min) min = val;
-        if (val > max) max = val;
-    }
-}
+////https://stackoverflow.com/questions/17458562/efficient-aabb-triangle-intersection-in-c-sharp
+//bool AABB::triangleIntersecton(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const
+//{
+//    double triangleMin, triangleMax;
+//    double boxMin, boxMax;
+//    
+//    // Test the box normals (x-, y- and z-axes)
+//    Vec3f boxNormals[3] = {
+//        Vec3f(1,0,0),
+//        Vec3f(0,1,0),
+//        Vec3f(0,0,1)
+//    };
+//
+//	vector<Vec3f> triangle_vertices = { p0, p1, p2 };
+//
+//    for (int i = 0; i < 3; i++)
+//    {
+//        Vec3f n = boxNormals[i];
+//        project(triangle_vertices, boxNormals[i], triangleMin, triangleMax);
+//        if (triangleMax < min_corner[i] || triangleMin > max_corner[i])
+//            return false; // No intersection possible.
+//    }
+//
+//	Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
+//
+//	vector<Vec3f> bbox_vertices = getVertices();
+//
+//    // Test the triangle normal
+//    double triangleOffset = dot(triangle_normal, p0);
+//    project(bbox_vertices, triangle_normal, boxMin, boxMax);
+//    if (boxMax < triangleOffset || boxMin > triangleOffset)
+//        return false; // No intersection possible.
+//
+//    // Test the nine edge cross-products
+//    Vec3f triangleEdges[3] = {
+//        p0 - p1,
+//        p1 - p2,
+//        p2 - p0
+//    };
+//
+//    for (int i = 0; i < 3; i++)
+//        for (int j = 0; j < 3; j++)
+//        {
+//            // The box normals are the same as it's edge tangents
+//            Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
+//            project(bbox_vertices, axis, boxMin, boxMax);
+//            project(vector<Vec3f>{ p0, p1, p2 }, axis, triangleMin, triangleMax);
+//            if (boxMax < triangleMin || boxMin > triangleMax)
+//                return false; // No intersection possible
+//        }
+//    // No separating axis found.
+//    return true;
+//}
