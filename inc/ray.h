@@ -23,9 +23,9 @@ public:
 
 
 	// Todo implement next
-	bool intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bool>& next, float& t) const;
+	bool intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, float& t) const;
 
-	bool intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bool>& next, float &t, Vec3f& exit) const;
+	bool intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, int& exit_direction, float &t, Vec3f& exit) const;
 
 	inline const Vec3f& get_origin() const {return origin;}
 	

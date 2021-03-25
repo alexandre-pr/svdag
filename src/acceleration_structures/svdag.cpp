@@ -4,10 +4,12 @@
 #include <map>
 #include <set>
 #include <numeric>
+#include<stack>
 
 void project(const vector<Vec3f>& points, const Vec3f& axis,
 	float& min, float& max);
 float project_extent(const Vec3f& extent, const Vec3f& axis);
+Vec3i relativePos(const Vec3f& min_corner, const Vec3f& max_corner, Vec3f point);
 
 SVDAG::SVDAG() : max_depth(0) {};
 
@@ -371,6 +373,87 @@ bool SVDAG::triangleIntersection(const Vec3f& center, const Vec3f& extent, const
 
 	// No separating axis found.
 	return true;
+}
+
+
+
+bool SVDAG::shadowRay(const Ray& ray, float t_max) {
+	int depth = 0;
+	stack<pair<uint, uchar>> stack; // A node and its relative position in its parent
+	Vec3f diagonal = bbox.max_corner - bbox.min_corner;
+	const Vec3f& origin = ray.get_origin();
+	Vec3f ray_entry_point;
+	float t = 0;
+
+	// Find the origin location (represented as a stack of uint, from root to last node)
+	Vec3i relative_pos = relativePos(bbox.min_corner, bbox.max_corner, origin);
+
+	// If the ray starts in the box, the stack must be filled
+	if ((relative_pos >= Vec3i(0,0,0)) && (relative_pos < Vec3i(2,2,2))) {// Ray origin inside the box
+		
+	}
+
+	else { // Ray origin outside the box
+		if (ray.intersectBox(bbox.min_corner, bbox.max_corner, t)) {
+			ray_entry_point = origin + t * ray.get_direction();
+			stack.push(pair<uint, char>(0,0));
+		}
+	}
+
+
+	while (!stack.empty()) {
+		// Pop the last node
+		// If minimal size and filled: return true
+		
+		// If empty
+		// Compute the shift required for the ray to exit (ADVANCE)
+		// Pop nodes until you can satisfy the shift (POP)
+
+		// Else
+		// Find the child that is at the right location (PUSH)
+	}
+}
+
+// Gives which child bbox the point is in ({0,1}, {0,1}, {0,1})
+Vec3i relativePos(const Vec3f& min_corner, const Vec3f& max_corner, Vec3f point) {
+	Vec3f rel_pos = (point - min_corner) * 2 / (max_corner - min_corner);
+	return Vec3i(rel_pos[0], rel_pos[1], rel_pos[2]);
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Utility functions
+//////////////////////////////////////////////////////////////////////////////////
+
+bool shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_dimension, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner) {
+	const Vec3f& direction = ray.get_direction();
+	Vec3<uchar> voxel_pos; // Position of the child in the 4*4*4 cube
+
+	for (int i = 0; i < 3; i++) {
+		if (i == entry_dimension) {
+			if (direction[i] < 0)
+				voxel_pos[i] = 3;
+		}
+		else {
+			voxel_pos[i] = 4 * (entry_point[i] - min_corner[i]) / (max_corner[i] - min_corner[i]);
+		}
+	}
+
+	Vec3<uchar> voxel_parent_pos = voxel_pos / 2;
+	
+
+}
+
+bool SVDAG::readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z) { // Pos in  [[0,4[[^3
+	bool i = (bool)(pos_x / 2);
+	bool j = (bool)(pos_y / 2);
+	bool k = (bool)(pos_z / 2);
+	bool ic = (bool)(pos_x - 2 * i);
+	bool jc = (bool)(pos_y - 2 * j);
+	bool kc = (bool)(pos_z - 2 * k);
+	leaf = leaf >> ((1 - i) * 4 + (1 - j) * 2 + (1 - k)) * 8;
+	return get_bit(leaf, ic * 4 + 2 * jc + kc)
 }
 
 void project(const vector<Vec3f>& points, const Vec3f& axis,

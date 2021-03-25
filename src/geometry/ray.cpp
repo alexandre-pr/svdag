@@ -54,7 +54,7 @@ bool Ray::intersectTriangle(const Vec3f& p0, const Vec3f& p1, const Vec3f& p2, H
 	return false;
 };
 
-bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bool>& next, float& t, Vec3f& exit) const {
+bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, int& exit_direction, float& t, Vec3f& exit) const {
 	// r.dir is unit direction vector of ray
 	float dirfrac_x = 1.0f / (get_direction()[0] + epsilon);
 	float dirfrac_y = 1.0f / (get_direction()[1] + epsilon);
@@ -68,8 +68,15 @@ bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bo
 	float t5 = (min_corner[2] - get_origin()[2]) * dirfrac_z;
 	float t6 = (max_corner[2] - get_origin()[2]) * dirfrac_z;
 
-	float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-	float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+	float mx = min(t1, t2);
+	float my = min(t3, t4);
+	float mz = min(t5, t6);
+	float Mx = max(t1, t2);
+	float My = max(t3, t4);
+	float Mz = max(t5, t6);
+
+	float tmin = max(max(mx, my), mz);
+	float tmax = min(min(Mx, My), Mz);
 
 	// if tmax < 0, ray (line) is intersecting AABB, but the whole AABB is behind us
 	if (tmax < 0)
@@ -83,6 +90,14 @@ bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bo
 		return false;
 	}
 
+	// Where is the ray exiting from:
+	if (Mx == tmax)
+		exit_direction = 0;
+	if (My == tmax)
+		exit_direction = 1;
+	if (Mz == tmax)
+		exit_direction = 2;
+
 	// The ray starts in the box
 	if (tmin < 0) {
 		t = tmax;
@@ -92,6 +107,9 @@ bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, Vec3<bo
 
 	t = tmin;
 	exit = get_origin() + tmax * get_direction();
-
 	return true;
 }
+
+bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, float& t) const {
+	return intersectBox(min_corner, max_corner, t);
+};
