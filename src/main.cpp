@@ -1,16 +1,17 @@
-#include "svo.h"
+#include "svdag.h"
 #include "bit_operations.h"
 #include "image.h"
 #include <iostream>
 #include <chrono>
 #include <stack>
 
-SVO svo;
-size_t max_depth = 9;
+SVDAG svdag;
+size_t max_depth =9;
 
 void outputImage();
 
 int main(int, char* argv[]) {
+
 	std::string offFilename = "../../assets/example_highres.off";
 	std::string outputFilename = "../../output/output.ppm";
 	std::vector<Mesh*> meshes;
@@ -23,7 +24,7 @@ int main(int, char* argv[]) {
 
 	auto t1 = std::chrono::high_resolution_clock::now();
 	
-	svo = SVO(meshes, max_depth);
+	svdag = SVDAG(meshes, Vec3f(-1, -1, -1), Vec3f(1, 1, 1), max_depth);
 	
 	auto t2 = std::chrono::high_resolution_clock::now();
 	std::cout << "process took:"
@@ -31,8 +32,8 @@ int main(int, char* argv[]) {
 		<< " milliseconds\n" << std::endl;
 
 	size_t size = 0;
-	for (size_t i = 0; i < svo.nodes.size(); i++) {
-		size += svo.nodes[i].size() * 4;
+	for (size_t i = 0; i < svdag.nodes.size(); i++) {
+		size += svdag.nodes[i].size() * 4;
 	}
 
 	outputImage();
@@ -60,7 +61,7 @@ void outputImage() {
 
 
 		if (depth == max_depth - 2) {// Node is a leaf
-			uint64_t leaf = svo.leaves[idx];
+			uint64_t leaf = svdag.leaves[idx];
 			for (bool i : {1, 0}) { // Reverse enumeration compared to encoding
 				for (bool j : {1, 0}) {
 					for (bool k : {1, 0}) {
@@ -85,7 +86,7 @@ void outputImage() {
 		}
 				
 		else {
-		uint childmask = svo.nodes[depth][idx];
+		uint childmask = svdag.nodes[depth][idx];
 			int ptr_offset = 1;
 			for (bool i : {0, 1}) {
 				for (bool j : {0, 1}) {
@@ -93,7 +94,7 @@ void outputImage() {
 						if (get_bit(childmask, 4 * i + j * 2 + k)) {
 							stack.push(
 								node(
-									ipair(depth + 1, svo.nodes[depth][idx+ptr_offset]),
+									ipair(depth + 1, svdag.nodes[depth][idx+ptr_offset]),
 									offset + (int)pow(2, max_depth - 1 - depth) * Vec3i(i,j,k)));
 							ptr_offset++;
 						}

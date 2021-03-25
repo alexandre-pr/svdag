@@ -12,9 +12,11 @@ using namespace std;
 using uint = uint32_t;
 using uchar = unsigned char;
 
+static float svdag_eps = 1e-10f;
+
 // On my computer, an unsigned int is 32bits so I used this format
 
-class SVO {
+class SVDAG {
 public:
     /*inline vector<uint>& operator [](uint i) {
         return nodes[i];
@@ -24,17 +26,26 @@ public:
         return nodes[i];
     }*/
 
-    SVO();
 
-    SVO(const vector<Mesh*>& meshes, size_t max_depth = 8, bool verbose=true);
+    // Constructing the data structure
+    SVDAG();
+
+    SVDAG(const vector<Mesh*>& meshes, size_t max_depth = 8, bool verbose=true);
+
+    SVDAG(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& max_corner, size_t max_depth = 8, bool verbose = true);
+
+    void computeSVDAG(const vector<Mesh*>& meshes, bool verbose);
 
     uint computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& half_diagonal, const std::vector<pair<int, int>>& primitives, size_t depth, vector<vector<uint>>& nodes_ptr); 
     // Return the index of the added node (in the depth-th vector of data)
 
     void compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose);
-    void computeDAG(const vector<vector<uint>>& nodes_ptr, bool verbose);
+    void computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose);
 
     bool triangleIntersection(const Vec3f& center, const Vec3f& extent, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const;
+
+
+    //
 
     AABB bbox; // Main bbox: defines the main corners
     size_t max_depth;
