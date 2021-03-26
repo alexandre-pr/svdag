@@ -111,5 +111,6 @@ bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, int& ex
 }
 
 bool Ray::intersectBox(const Vec3f& min_corner, const Vec3f& max_corner, float& t) const {
-	return intersectBox(min_corner, max_corner, t);
+	Vec3f exit; int exit_direction;
+	return intersectBox(min_corner, max_corner, exit_direction, t, exit);
 };

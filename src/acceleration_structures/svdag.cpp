@@ -10,6 +10,8 @@ void project(const vector<Vec3f>& points, const Vec3f& axis,
 	float& min, float& max);
 float project_extent(const Vec3f& extent, const Vec3f& axis);
 Vec3i relativePos(const Vec3f& min_corner, const Vec3f& max_corner, Vec3f point);
+void stackPush(stack<pair<uint, Vec3<bool>>>& stack, uint node_idx, Vec3<bool> child_pos, Vec3f& stride, AABB& voxel, int& depth);
+void stackPop(stack<pair<uint, Vec3<bool>>>& stack, Vec3f& stride, AABB& voxel, int& depth);
 
 SVDAG::SVDAG() : max_depth(0) {};
 
@@ -204,7 +206,7 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 	set_leaves.clear();
 	
 	// Update the nodes of the last level accordingly
-	int depth = max_depth - 3;
+	int depth = (int)(max_depth - 3);
 	size_t N_nodes = nodes_ptr[depth].size();
 	for (uint i = 0; i < N_nodes - 1; i++) { // Points towards the child masks
 		for (uint j = nodes_ptr[depth][i] + 1; j < nodes_ptr[depth][i + 1]; j++) {
@@ -221,7 +223,7 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 
 
 	// Doing the same for nodes
-	for (int depth = max_depth-4; depth >= 0; depth--) {
+	for (int depth = (int)(max_depth-4); depth >= 0; depth--) {
 		
 		size_t N_nodes = nodes_ptr[depth+1].size();
 		
@@ -229,7 +231,7 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 		map<uint,uint> indirection_table; // To keep track of original position after merging
 		
 		vector<uint> nodes_ptr_end(nodes_ptr[depth + 1].begin() + 1, nodes_ptr[depth + 1].end()); // Store the end of a node (pointer store the beginning)
-		nodes_ptr_end.push_back(nodes[depth + 1].size());
+		nodes_ptr_end.push_back((uint)nodes[depth + 1].size());
 
 		// Sorting the nodes
 		auto compareNodes = [&] (uint i1, uint i2) {
@@ -278,8 +280,8 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 		vector<uint> new_nodes;
 		vector<uint> new_nodes_ptr;
 		for (int i = 0; i < indexes.size(); i++) {
-			new_nodes_ptr.push_back(new_nodes.size()); // We update the node pointer
-			for (int j = nodes_ptr[depth + 1][indexes[i]]; j < nodes_ptr_end[indexes[i]]; j++) {
+			new_nodes_ptr.push_back((uint)new_nodes.size()); // We update the node pointer
+			for (uint j = nodes_ptr[depth + 1][indexes[i]]; j < nodes_ptr_end[indexes[i]]; j++) {
 				new_nodes.push_back(nodes[depth + 1][j]);
 			}
 		}
@@ -377,75 +379,229 @@ bool SVDAG::triangleIntersection(const Vec3f& center, const Vec3f& extent, const
 
 
 
-bool SVDAG::shadowRay(const Ray& ray, float t_max) {
+bool SVDAG::shadowRay(const Ray& ray, float t_max) const{
 	int depth = 0;
-	stack<pair<uint, uchar>> stack; // A node and its relative position in its parent
-	Vec3f diagonal = bbox.max_corner - bbox.min_corner;
-	const Vec3f& origin = ray.get_origin();
-	Vec3f ray_entry_point;
-	float t = 0;
+	stack<pair<uint, Vec3<bool>>> stack; // A node and its relative position in its parent
+	Vec3f stride = bbox.max_corner - bbox.min_corner;
+	AABB voxel = AABB(bbox);
+	const Vec3f& origin = ray.get_origin(); const Vec3f& direction = ray.get_direction();
+	float t = 0; Vec3f exit_entry; int exit_direction = 0; uint child_idx;
+	bool firstIteration=false;
 
 	// Find the origin location (represented as a stack of uint, from root to last node)
 	Vec3i relative_pos = relativePos(bbox.min_corner, bbox.max_corner, origin);
 
-	// If the ray starts in the box, the stack must be filled
+	// If the ray starts in the box, the stack must be filled.
+	// It is important to ignore the "starting voxel", to avoid a primitive shadowing itself
 	if ((relative_pos >= Vec3i(0,0,0)) && (relative_pos < Vec3i(2,2,2))) {// Ray origin inside the box
-		
-	}
+		stack.push(pair<uint, Vec3<bool>>(0, Vec3<bool>(0,0,0)));
+		while (true) { // either exit because of max depth reached or because empty voxel
+			uint node_idx = stack.top().first;
+			if (node_idx == -1) // Empty node, we start the search from here (weird case, it shouldn't happen)
+			{
+				cout << "Warning: Ray starting from empty voxel" << endl;
+				break;
+			}
 
-	else { // Ray origin outside the box
-		if (ray.intersectBox(bbox.min_corner, bbox.max_corner, t)) {
-			ray_entry_point = origin + t * ray.get_direction();
-			stack.push(pair<uint, char>(0,0));
+			if (depth == max_depth - 2) { // Compressed levels
+				firstIteration = true;
+				break;
+			}
+
+			relative_pos = relativePos(voxel.min_corner, voxel.max_corner, origin);
+			uchar child_no = relative_pos[0] * 4 + relative_pos[1] * 2 + relative_pos[2];
+			getChild(depth, node_idx, child_no, child_idx);
+			stackPush(stack, child_idx, Vec3<bool>(relative_pos[0], relative_pos[1], relative_pos[2]), stride, voxel, depth);
 		}
 	}
 
+	else { // Ray origin outside the box
+		cout << "Warning: Ray starting outside the box" << endl;
+		if (ray.intersectBox(bbox.min_corner, bbox.max_corner, t)) {
+			exit_entry = origin + t * ray.get_direction();
+			stack.push(pair<uint, Vec3<bool>>(0, Vec3<bool>(0, 0, 0)));
+		}
+		else
+			return false;
+	}
 
 	while (!stack.empty()) {
 		// Pop the last node
-		// If minimal size and filled: return true
-		
-		// If empty
-		// Compute the shift required for the ray to exit (ADVANCE)
-		// Pop nodes until you can satisfy the shift (POP)
+		pair<uint, Vec3<bool>> node = stack.top();
+		uint node_idx = node.first;
+		Vec3<bool> child_pos = node.second;
 
-		// Else
-		// Find the child that is at the right location (PUSH)
+		if ((depth == max_depth - 2) || (node_idx == -1)) // Compressed levels or empty voxel
+		{
+			// The shift required for the ray to exit is computed in exit_direction (ADVANCE)
+			if (node_idx == -1) {// Empty voxel
+				ray.intersectBox(voxel.min_corner, voxel.max_corner, exit_direction, t, exit_entry);
+			}
+			else {
+				bool blocked;
+				if (firstIteration)
+					blocked = shadowRayLeafInside(ray, leaves[node_idx], voxel.min_corner, voxel.max_corner, exit_entry, exit_direction, t);
+				else
+					blocked = shadowRayLeaf(ray, exit_entry, exit_direction, leaves[node_idx], voxel.min_corner, voxel.max_corner, exit_entry, exit_direction, t);
+				if (blocked) // If minimal size and filled: return true
+				{
+					return (t < t_max);
+				}
+			}
+
+			// If not intercepted
+			// Pop nodes until you can satisfy the shift (POP)
+			bool target = (direction[exit_direction] > 0) ? 1 : 0; // We want to shift to 1 if direction>0
+			while (child_pos[exit_direction] == target) { // We want to increment child pos on the right direction
+				stackPop(stack, stride, voxel, depth);
+				if (stack.empty())
+					return false; // We exited the octree
+				node = stack.top();
+				node_idx = node.first;
+				child_pos = node.second;
+			}
+			child_pos[exit_direction] = target;
+			// Pop the node that can be changed
+			stackPop(stack, stride, voxel, depth);
+
+			if (stack.empty())
+				return false; // We exited the octree
+			uint parent_node_idx = stack.top().first;
+			getChild(depth, parent_node_idx, 4 *child_pos[0] + 2 * child_pos[1] + child_pos[2], child_idx);
+			stackPush(stack, child_idx, child_pos, stride, voxel, depth);
+		}
+
+		else {
+			// Else
+			// Find the child that is at the right location (PUSH)
+			Vec3<bool> new_child_pos;
+
+			for (int i = 0; i < 3; i++) {
+				if (i == exit_direction) {
+					if (direction[i] < 0)
+						new_child_pos[i] = 1;
+				}
+				else {
+					new_child_pos[i] = min((int)(2 * (exit_entry[i] - voxel.min_corner[i]) / (voxel.max_corner[i] - voxel.min_corner[i])),1);
+				}
+			}
+			getChild(depth, node_idx, 4 * new_child_pos[0] + 2 * new_child_pos[1] + new_child_pos[2], child_idx);
+			stackPush(stack, child_idx, new_child_pos, stride, voxel, depth);
+		}
+		
+		if (t > t_max)
+			return false; // Too far
+
+		firstIteration = false;
 	}
+
+	cout << "Warning: Unusual exit" << endl;
+	return false;
 }
 
 // Gives which child bbox the point is in ({0,1}, {0,1}, {0,1})
 Vec3i relativePos(const Vec3f& min_corner, const Vec3f& max_corner, Vec3f point) {
 	Vec3f rel_pos = (point - min_corner) * 2 / (max_corner - min_corner);
-	return Vec3i(rel_pos[0], rel_pos[1], rel_pos[2]);
+	return Vec3i((int)rel_pos[0], (int)rel_pos[1], (int)rel_pos[2]);
 }
 
+void stackPush(stack<pair<uint,Vec3<bool>>>& stack, uint node_idx, Vec3<bool> child_pos, Vec3f& stride, AABB& voxel, int& depth) {
+	stack.push(pair<uint, Vec3<bool>>(node_idx, child_pos));
+	depth++;
+	stride /= 2;
+	Vec3f offset = stride * Vec3f(child_pos[0], child_pos[1], child_pos[2]);
+	Vec3f m_corner = voxel.min_corner + offset;
+	voxel = AABB(m_corner, m_corner+stride);
+}
 
+void stackPop(stack<pair<uint, Vec3<bool>>>& stack, Vec3f& stride, AABB& voxel, int& depth) {
+	Vec3<bool> child_pos = stack.top().second;
+	stack.pop(); // Pop the node
+	// Updating parameters
+	Vec3f offset = stride * Vec3f(child_pos[0], child_pos[1], child_pos[2]);
+	Vec3f m_corner = voxel.min_corner - offset;
+	depth--;
+	stride *= 2;
+	voxel = AABB(m_corner, m_corner + stride);
+}
 
 //////////////////////////////////////////////////////////////////////////////////
 // Utility functions
 //////////////////////////////////////////////////////////////////////////////////
 
-bool shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_dimension, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner) {
+bool SVDAG::shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_direction, uint64_t leaf, const Vec3f& min_corner, 
+	const Vec3f& max_corner, Vec3f& exit, int& exit_direction, float& t) const{
+	// Leaf traversal
+
 	const Vec3f& direction = ray.get_direction();
-	Vec3<uchar> voxel_pos; // Position of the child in the 4*4*4 cube
+	Vec3i voxel_pos; // Position of the child in the 4*4*4 cube, [[0,4[[^3
+	Vec3f stride = (max_corner - min_corner) / 4;
 
 	for (int i = 0; i < 3; i++) {
-		if (i == entry_dimension) {
+		if (i == entry_direction) {
 			if (direction[i] < 0)
 				voxel_pos[i] = 3;
 		}
 		else {
-			voxel_pos[i] = 4 * (entry_point[i] - min_corner[i]) / (max_corner[i] - min_corner[i]);
+			voxel_pos[i] = min((int)(4 * (entry_point[i] - min_corner[i]) / (max_corner[i] - min_corner[i])), 3);
 		}
 	}
 
-	Vec3<uchar> voxel_parent_pos = voxel_pos / 2;
-	
-
+	while (true) {
+		if (readLeaf(leaf, voxel_pos[0], voxel_pos[1], voxel_pos[2])) // Voxel is full
+			return true;
+		else {
+			Vec3f m_corner = min_corner + stride * Vec3f((float)voxel_pos[0], (float)voxel_pos[1], (float)voxel_pos[2]);
+			ray.intersectBox(m_corner, m_corner + stride * Vec3f(1, 1, 1), exit_direction, t, exit);
+			if (direction[exit_direction] > 0) {
+				voxel_pos[exit_direction]++;
+				if (voxel_pos[exit_direction] == 4)
+					return false;
+			}
+			else {
+				voxel_pos[exit_direction]--;
+				if (voxel_pos[exit_direction] == -1)
+					return false;
+			}
+		}
+	}
 }
 
-bool SVDAG::readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z) { // Pos in  [[0,4[[^3
+bool SVDAG::shadowRayLeafInside(const Ray& ray, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner,
+	Vec3f& exit, int& exit_direction, float& t) const{
+	// To be called when the ray starts from inside a leaf
+	Vec3f a =  (ray.get_origin() - min_corner) * 4/ (max_corner - min_corner);
+	Vec3i voxel_pos;
+	for (int i = 0; i < 3; i++) {
+		voxel_pos[i] = min((int)a[i], 3);
+	}
+	Vec3f stride = (max_corner - min_corner) / 4;
+	Vec3f direction = ray.get_direction();
+
+	bool isOriginVoxel = true;
+
+	while (true) {
+		if (readLeaf(leaf, voxel_pos[0], voxel_pos[1], voxel_pos[2]) && (!isOriginVoxel)) // Voxel is full except the origin voxel
+			return true;
+		else {
+			Vec3f m_corner = min_corner + stride * Vec3f((float)voxel_pos[0], (float)voxel_pos[1], (float)voxel_pos[2]);
+			ray.intersectBox(m_corner, m_corner + stride * Vec3f(1, 1, 1), exit_direction, t, exit);
+			if (direction[exit_direction] > 0) {
+				voxel_pos[exit_direction]++;
+				if (voxel_pos[exit_direction] == 4)
+					return false;
+			}
+			else {
+				voxel_pos[exit_direction]--;
+				if (voxel_pos[exit_direction] == -1)
+					return false;
+			}
+		}
+		isOriginVoxel = false;
+	}
+}
+
+bool SVDAG::readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z) const{ // Pos in  [[0,4[[^3
 	bool i = (bool)(pos_x / 2);
 	bool j = (bool)(pos_y / 2);
 	bool k = (bool)(pos_z / 2);
@@ -453,7 +609,22 @@ bool SVDAG::readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z) { // Pos in
 	bool jc = (bool)(pos_y - 2 * j);
 	bool kc = (bool)(pos_z - 2 * k);
 	leaf = leaf >> ((1 - i) * 4 + (1 - j) * 2 + (1 - k)) * 8;
-	return get_bit(leaf, ic * 4 + 2 * jc + kc)
+	return get_bit(leaf, ic * 4 + 2 * jc + kc);
+}
+
+void SVDAG::getChild(int depth, uint node_idx, uchar child_no, uint& child_idx) const {
+
+	uchar childmask = (uchar)nodes[depth][node_idx];
+	if (get_bit(childmask, child_no)) {
+		int ptr_offset = 1;
+		for (uchar i = 0; i < child_no; i++) { // Finding the position of the pointer
+			if (get_bit(childmask, i))
+				ptr_offset++;
+		}
+		child_idx = nodes[depth][node_idx + ptr_offset];
+	}
+	else
+		child_idx = -1; // -1 means numeric_limit<uint>::max() here, which normally shouldn't be used for anything else
 }
 
 void project(const vector<Vec3f>& points, const Vec3f& axis,

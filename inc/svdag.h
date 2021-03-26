@@ -44,10 +44,13 @@ public:
 
     bool triangleIntersection(const Vec3f& center, const Vec3f& extent, const Vec3f& p0, const Vec3f& p1, const Vec3f& p2) const;
 
-    bool readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z);
+    bool readLeaf(uint64_t leaf, int pos_x, int pos_y, int pos_z) const;
+    void getChild(int depth, uint node_idx, uchar child_no, uint& child_idx) const;
 
     // Shading
-    bool shadowRay(const Ray& ray, float t_max);
+    bool shadowRay(const Ray& ray, float t_max) const;
+    bool shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_direction, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner, Vec3f& exit, int& exit_direction, float& t) const;
+    bool shadowRayLeafInside(const Ray& ray, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner, Vec3f& exit, int& exit_direction, float& t) const;
 
     AABB bbox; // Main bbox: defines the main corners
     size_t max_depth;
