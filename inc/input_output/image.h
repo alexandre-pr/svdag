@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "mat3.h"
+#include "math/mat3.h"
 
 #pragma once
 

@@ -4,8 +4,8 @@
 #include <cassert>
 #include <vector>
 
-#include "transform.h"
-#include "ray.h"
+#include "geometry/transform.h"
+#include "geometry/ray.h"
 
 #pragma once
 

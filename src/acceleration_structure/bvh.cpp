@@ -1,4 +1,4 @@
-#include "bvh.h"
+#include "acceleration_structure/bvh.h"
 #include <limits>
 #include <queue>
 #include <stack>

@@ -1,6 +1,7 @@
-#include "aabb.h"
+#include "acceleration_structure/aabb.h"
 #include <limits>
 
+float AABB::aabb_eps = 1e-10f;
 
 AABB::AABB() {};
 

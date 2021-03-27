@@ -1,4 +1,4 @@
-#include "rotation.h"
+#include "geometry/rotation.h"
 
 Rotation::Rotation() {
     Mat3f mat;

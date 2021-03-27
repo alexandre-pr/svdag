@@ -1,12 +1,12 @@
 #pragma once
 
-#include "bit_operations.h"
+#include "helper/bit_operations.h"
 #include <vector>
 #include <list>
-#include "vec3.h"
-#include "ray.h"
-#include "mesh.h"
-#include "aabb.h"
+#include "math/vec3.h"
+#include "geometry/ray.h"
+#include "scene/mesh.h"
+#include "acceleration_structure/aabb.h"
 
 using namespace std;
 using uint = uint32_t;
@@ -56,6 +56,7 @@ public:
     size_t max_depth;
     vector<vector<uint>> nodes;
     vector<uint64_t> leaves;
+    Vec3f min_stride;
 
     size_t n_nodes=0;
 };

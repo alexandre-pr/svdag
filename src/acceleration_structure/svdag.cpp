@@ -1,10 +1,11 @@
-#include "svdag.h"
 #include <chrono>
 #include <algorithm>
 #include <map>
 #include <set>
 #include <numeric>
 #include<stack>
+
+#include "acceleration_structure/svdag.h"
 
 void project(const vector<Vec3f>& points, const Vec3f& axis,
 	float& min, float& max);
@@ -16,7 +17,7 @@ void stackPop(stack<pair<uint, Vec3<bool>>>& stack, Vec3f& stride, AABB& voxel, 
 SVDAG::SVDAG() : max_depth(0) {};
 
 SVDAG::SVDAG(const vector<Mesh*>& meshes, const Vec3f& min_corner, const Vec3f& max_corner, size_t max_depth, bool verbose) :
-	max_depth(max_depth), nodes(vector<vector<uint>>(max_depth)) , bbox(min_corner, max_corner)
+	max_depth(max_depth), min_stride((max_corner - min_corner)/(float)pow(2,max_depth)), nodes(vector<vector<uint>>(max_depth)) , bbox(min_corner, max_corner)
 {
 	computeSVDAG(meshes, verbose);
 }
@@ -35,6 +36,7 @@ SVDAG::SVDAG(const vector<Mesh*>& meshes, size_t max_depth, bool verbose):
 	// Find the min/max corners
 	bbox = AABB::get_bbox(meshes, primitives.begin(), primitives.end());
 	computeSVDAG(meshes, verbose);
+	min_stride = (bbox.max_corner - bbox.min_corner) / (float)pow(2, max_depth);
 }
 
 void SVDAG::computeSVDAG(const vector<Mesh*>& meshes, bool verbose) {
@@ -399,7 +401,7 @@ bool SVDAG::shadowRay(const Ray& ray, float t_max) const{
 			uint node_idx = stack.top().first;
 			if (node_idx == -1) // Empty node, we start the search from here (weird case, it shouldn't happen)
 			{
-				cout << "Warning: Ray starting from empty voxel" << endl;
+				//cout << "Warning: Ray starting from empty voxel" << endl;
 				break;
 			}
 
@@ -416,7 +418,7 @@ bool SVDAG::shadowRay(const Ray& ray, float t_max) const{
 	}
 
 	else { // Ray origin outside the box
-		cout << "Warning: Ray starting outside the box" << endl;
+		//cout << "Warning: Ray starting outside the box" << endl;
 		if (ray.intersectBox(bbox.min_corner, bbox.max_corner, t)) {
 			exit_entry = origin + t * ray.get_direction();
 			stack.push(pair<uint, Vec3<bool>>(0, Vec3<bool>(0, 0, 0)));

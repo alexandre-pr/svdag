@@ -1,6 +1,8 @@
-#include "vec3.h"
-#include "ray.h"
-#include "mesh.h"
+#pragma once
+
+#include "math/vec3.h"
+#include "geometry/ray.h"
+#include "scene/mesh.h"
 #include <algorithm>
 #include <vector>
 #include <chrono>
@@ -8,8 +10,6 @@
 
 using namespace std;
 using PrimitiveIterator = std::vector<std::pair<int, int>>::iterator;
-
-static const float aabb_eps = 1e-10f;
 
 class AABB {
 public:
@@ -28,4 +28,6 @@ public:
 
 	Vec3f max_corner;
 	Vec3f min_corner;
+	
+	static float aabb_eps;
 };

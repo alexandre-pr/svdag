@@ -1,5 +1,5 @@
-#include "mesh.h"
-#include "aabb.h"
+#include "scene/mesh.h"
+#include "acceleration_structure/aabb.h"
 #include <utility>
 #include <algorithm>
 

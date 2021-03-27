@@ -1,4 +1,4 @@
-#include "ray.h"
+#include "geometry/ray.h"
 #include <algorithm>
 
 

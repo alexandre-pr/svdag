@@ -1,4 +1,4 @@
-#include "image.h"
+#include "input_output/image.h"
 
 Image::Image(int width, int height) :
 	width(width),

@@ -1,4 +1,4 @@
-#include "mesh.h"
+#include "scene/mesh.h"
 #include <vector>
 
 Mesh::Mesh() {};

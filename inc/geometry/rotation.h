@@ -1,4 +1,4 @@
-#include "mat3.h"
+#include "math/mat3.h"
 #pragma once
 
 struct Rotation {
