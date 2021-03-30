@@ -31,8 +31,8 @@ public:
 	bool path(const Scene& scene, const Ray& ray,
 		Vec3f& position, Vec3f& color, int bounce, bool secondary, const SVDAG& svdag) const;
 	Vec3f shade(const Scene& scene, const Material& material, const Vec3f& position, const Vec3f& normal, const Vec3f& wo, const SVDAG& svdag, bool secondary=false) const;
-	//float ambiantOcclusion(const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary=false) const;
-	float ambiantOcclusion(const Scene& scene, const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const;
+	float ambiantOcclusion(const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary=false) const;
+	//float ambiantOcclusion(const Scene& scene, const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const;
 
 private:
 	int ray_per_pixel;

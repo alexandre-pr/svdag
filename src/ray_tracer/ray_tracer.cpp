@@ -156,28 +156,28 @@ Vec3f RayTracer::shade(const Scene& scene, const Material& material, const Vec3f
 
         Ray ray(position + 16.f *svdag.min_stride * wi, wi);
         // Checking if the light is visible from the point
-        if (!scene.ray_blocked(ray, di)) {
-        //if (!svdag.shadowRay(ray, di)){
+        //if (!scene.ray_blocked(ray, di)) {
+        if (!svdag.shadowRay(ray, di)){
             color += scene.lights[l]->intensity *
                 material.evaluateColorResponse(position, normal, wi, wo, scene.lights[l]->color);
         }
     }
 
-    float AO = ambiantOcclusion(scene, position, normal, svdag, secondary);
-    //float AO = ambiantOcclusion(position, normal, svdag, secondary);
+    //float AO = ambiantOcclusion(scene, position, normal, svdag, secondary);
+    float AO = ambiantOcclusion(position, normal, svdag, secondary);
     color += scene.ambiant_color * material.get_albedo() * AO;
 
     return Vec3f(clamp(color, 0.f, 1.f));
 };
 
-float RayTracer::ambiantOcclusion(const Scene& scene, const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
-//float RayTracer::ambiantOcclusion(const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
+//float RayTracer::ambiantOcclusion(const Scene& scene, const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
+float RayTracer::ambiantOcclusion(const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
     float AO = 0;
     if (secondary) {// Only one sample
         Ray ray(position + 16 * dot(svdag.min_stride, normal) * normal, normal);
         float l = exp_distrib(generator); // See sampling.h
-        if (!scene.ray_blocked(ray, l))
-        //if (!svdag.shadowRay(ray, l))
+        //if (!scene.ray_blocked(ray, l))
+        if (!svdag.shadowRay(ray, l))
             return 1;
         else
             return 0;
@@ -187,8 +187,8 @@ float RayTracer::ambiantOcclusion(const Scene& scene, const Vec3f& position, con
         Vec3f v = jittered_sample_vector_cosine(i, n_sample_ao, normal);
         Ray ray(position + 16.0f * svdag.min_stride * v, v);
         float l = exp_distrib(generator); // See sampling.h
-        //if (!svdag.shadowRay(ray, l))
-        if (!scene.ray_blocked(ray, l))
+        if (!svdag.shadowRay(ray, l))
+        //if (!scene.ray_blocked(ray, l))
             AO += 1;
     }
     return AO/n_sample_ao;

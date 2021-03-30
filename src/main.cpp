@@ -9,7 +9,7 @@
 
 Vec3f blue = Vec3f(0, 0, 1);
 Vec3f white = Vec3f(0, 0, 0);
-string offFilename = "../../assets/example_highres.off";
+string offFilename = "../../assets/raptor.off";
 string outputFilename = "../../output/output_raytracer.ppm";
 
 // SVDAG
