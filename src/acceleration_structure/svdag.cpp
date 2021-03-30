@@ -185,6 +185,7 @@ void SVDAG::compressSVO(const vector<vector<uint>>& nodes_ptr, bool verbose) {
 		size_t n = 0;
 		for (size_t i = 0; i < nodes_ptr.size(); i++) {
 			n += nodes_ptr[i].size();
+			cout << "Level " << i << ": " << nodes_ptr[i].size() << " nodes" << endl;
 		}
 
 		std::cout << "size: " << size + 8 * leaves.size() << std::endl;

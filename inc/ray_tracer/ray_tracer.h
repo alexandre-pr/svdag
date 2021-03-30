@@ -24,7 +24,7 @@ public:
 class RayTracer {
 	float epsilon = 0.00001f;
 public:
-	inline RayTracer(int ray_per_pixel = 16, int bounce = 3, int spp = 4, int n_sample_ao=16, float ao_falloff_distance = 0.1f) : 
+	inline RayTracer(int ray_per_pixel = 16, int bounce = 3, int spp = 4, int n_sample_ao=16, float ao_falloff_distance = 1.f) : 
 		ray_per_pixel(ray_per_pixel), n_bounce(bounce), spp(spp), n_sample_ao(n_sample_ao), ao_falloff_distance(ao_falloff_distance), exp_distrib(1/ao_falloff_distance) {};
 
 	void rayTrace(const Scene& scene, Image& image, const SVDAG& svdag) const;
