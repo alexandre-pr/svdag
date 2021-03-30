@@ -18,7 +18,10 @@ Vec3f random_vector(const Vec3f& normal);
 
 std::pair<float, float> jittered_sample(int sample_idx, int sample_per_pixel);
 
-Vec3f jittered_sample_vector(int sample_idx, int spp, const Vec3f& normal);
+//Vec3f jittered_sample_vector(int sample_idx, int spp, const Vec3f& normal);
+
+Vec3f jittered_sample_vector_cosine(int sample_idx, int spp, const Vec3f& normal);
+
 
 // Since we used GGX normal distribution for the brdf, we can sample theta (of the half vector) along
 // https://agraphicsguy.wordpress.com/2015/11/01/sampling-microfacet-brdf/

@@ -13,7 +13,7 @@ Vec3f BRDF::evaluateColorResponse(const Vec3f& position, const Vec3f& normal, co
 	const float D = alpha2 / (3.14f * pow(pow(dot(normal, wh), 2) * (alpha2 - 1) + 1, 2) + epsilon);
 	const float G1 = nwo / (nwo * (1 - k) + k + epsilon);
 	const float G2 = nwi / (nwi * (1 - k) + k + epsilon);
-	const float F = specular + (1 - specular) * ((float)pow(2, (-5.55473f * wowh - 6.98316f) * wowh));
+	const float F = fresnel + (1 - fresnel) * ((float)pow(2, (-5.55473f * wowh - 6.98316f) * wowh));
 
 	const float f_diff = diffuse / 3.14f;
 	const float f_spec = D * G1 * G2 * F / (4 * nwi * nwo + epsilon);

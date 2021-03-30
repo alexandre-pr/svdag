@@ -52,7 +52,6 @@ void RayTracer::rayTrace(const Scene& scene, Image& image, const SVDAG& svdag) c
         std::cout << i << "/" << image.width << std::endl;
         for (int j = 0; j < image.height; j++) {
             Pixel pix = Pixel();
-            Vec3f background_color = image.getPixelColor(i, j);
             for (int ray_idx = 0; ray_idx < ray_per_pixel; ray_idx++) {
                 //std::pair<float, float> sample = random_sample();
                 //auto t1 = std::chrono::high_resolution_clock::now();
@@ -63,9 +62,12 @@ void RayTracer::rayTrace(const Scene& scene, Image& image, const SVDAG& svdag) c
                     + real_height * dir_y * ((image.height * 0.5f - j - sample.second) / image.height);
                 Ray ray(c, normalize(p - c));
 
-                path(scene, ray, position, color, n_bounce, spp, svdag);
-                color = Vec3f(clamp(color, 0.f, 1.f));
-                pix.record(color);
+                if (path(scene, ray, position, color, n_bounce, false, svdag)) { // Primitive intersected
+                    color = Vec3f(clamp(color, 0.f, 1.f));
+                    pix.record(color);
+                }
+                else
+                    pix.record(scene.background_color);
                 /*l0 += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
                 l1 += std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
                 l2 += std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();*/
@@ -86,8 +88,8 @@ void RayTracer::rayTrace(const Scene& scene, Image& image, const SVDAG& svdag) c
         << std::endl<<std::endl;*/
 };
 
-void RayTracer::path(const Scene& scene, const Ray& ray,
-    Vec3f& position, Vec3f& color, int bounce, int spp_used, const SVDAG& svdag) const {
+bool RayTracer::path(const Scene& scene, const Ray& ray,
+    Vec3f& position, Vec3f& color, int bounce, bool secondary, const SVDAG& svdag) const {
     Hit_BVH hit = scene.ray_intersection(ray);
     if (!hit.is_null) {
         Vec3i f = scene.meshes[hit.primitive_mesh_idx]->get_face(hit.primitive_idx);
@@ -104,19 +106,21 @@ void RayTracer::path(const Scene& scene, const Ray& ray,
             position,
             normal,
             -ray.get_direction(),
-            svdag);
+            svdag,
+            secondary);
         //std::cout << color << std::endl;
         if (bounce > 0) {
             Vec3f total_bounce_color;
             Vec3f bounce_color, bounce_origin;
-            for (int i = 0; i < spp_used; i++) {
+            int n_sample = secondary ? 1 : spp;
+            for (int i = 0; i < n_sample; i++) {
                 Ray bounce_ray(position + epsilon * normal,
                     importance_sample_vector(normal, -ray.get_direction(), 
                     scene.materials[scene.mesh_material[hit.primitive_mesh_idx]]->get_alpha()));
                 
                 /*Ray bounce_ray(position + epsilon * normal,
                     random_vector(normal));*/
-                path(scene, bounce_ray, bounce_origin, bounce_color, bounce - 1, 1, svdag);
+                path(scene, bounce_ray, bounce_origin, bounce_color, bounce - 1, true, svdag);
                 total_bounce_color += scene.materials[scene.mesh_material[hit.primitive_mesh_idx]]->evaluateColorResponse(
                     position,
                     normal,
@@ -126,16 +130,20 @@ void RayTracer::path(const Scene& scene, const Ray& ray,
                 );
                 //std::cout << bounce<< " "<<bounce_color << std::endl;
             }
-            color += total_bounce_color / ((float)spp_used);
+            color += total_bounce_color / ((float)n_sample);
         }
+        return true;
     }
     else {
-        color = Vec3f();
+        color = scene.background_color; 
+        // If we bounce in the void, it is better to use the background color (~ambient color) 
+        // Else, occluded spaces would not be "more" lit due to bounces always hitting surfaces
+        return false;
     }
 }
 
 Vec3f RayTracer::shade(const Scene& scene, const Material& material, const Vec3f& position, 
-    const Vec3f& normal, const Vec3f& wo, const SVDAG& svdag) const {
+    const Vec3f& normal, const Vec3f& wo, const SVDAG& svdag, bool secondary) const {
     const size_t n_lights = scene.lights.size();
     Vec3f color;
 
@@ -146,15 +154,42 @@ Vec3f RayTracer::shade(const Scene& scene, const Material& material, const Vec3f
         //Vec3f wi = normalize(scene->lights[l].get_pos() - position);
 
 
-        Ray ray(position, wi);
+        Ray ray(position + 16.f *svdag.min_stride * wi, wi);
         // Checking if the light is visible from the point
-        //if (!scene.ray_blocked(ray, di)) {
-        if (!svdag.shadowRay(ray, di)){
+        if (!scene.ray_blocked(ray, di)) {
+        //if (!svdag.shadowRay(ray, di)){
             color += scene.lights[l]->intensity *
                 material.evaluateColorResponse(position, normal, wi, wo, scene.lights[l]->color);
         }
     }
 
+    float AO = ambiantOcclusion(scene, position, normal, svdag, secondary);
+    //float AO = ambiantOcclusion(position, normal, svdag, secondary);
+    color += scene.ambiant_color * material.get_albedo() * AO;
+
     return Vec3f(clamp(color, 0.f, 1.f));
-    // return (Vec3f(1, 1, 1) - normal) * 0.5;
 };
+
+float RayTracer::ambiantOcclusion(const Scene& scene, const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
+//float RayTracer::ambiantOcclusion(const Vec3f& position, const Vec3f& normal, const SVDAG& svdag, bool secondary) const {
+    float AO = 0;
+    if (secondary) {// Only one sample
+        Ray ray(position + 16 * dot(svdag.min_stride, normal) * normal, normal);
+        float l = exp_distrib(generator); // See sampling.h
+        if (!scene.ray_blocked(ray, l))
+        //if (!svdag.shadowRay(ray, l))
+            return 1;
+        else
+            return 0;
+    }
+
+    for (int i = 0; i < n_sample_ao; i++) {
+        Vec3f v = jittered_sample_vector_cosine(i, n_sample_ao, normal);
+        Ray ray(position + 16.0f * svdag.min_stride * v, v);
+        float l = exp_distrib(generator); // See sampling.h
+        //if (!svdag.shadowRay(ray, l))
+        if (!scene.ray_blocked(ray, l))
+            AO += 1;
+    }
+    return AO/n_sample_ao;
+}

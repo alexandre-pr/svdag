@@ -22,12 +22,14 @@ public:
 	Camera camera;
 	BVH bvh;
 	Vec3f ambiant_color;
+	Vec3f background_color;
 	
 
 	Scene() : camera(Camera()) {
 	};
 
-	Scene(Vec3f ambiant_color) : ambiant_color(ambiant_color) {};
+	Scene(const Vec3f& ambient_color) : ambiant_color(ambient_color), background_color(ambient_color) {};
+	Scene(const Vec3f& ambient_color, const Vec3f& background_color) : ambiant_color(ambient_color), background_color(background_color) {};
 
 	void add_mesh(Mesh* mesh) {
 		meshes.push_back(mesh);

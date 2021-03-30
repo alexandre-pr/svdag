@@ -14,7 +14,7 @@ string outputFilename = "../../output/output_raytracer.ppm";
 
 // SVDAG
 SVDAG svdag;
-size_t max_depth =9;
+size_t max_depth =11;
 
 // Ray tracing
 int resolution = 400; // width
@@ -38,8 +38,9 @@ int main(int, char* argv[]) {
 	image.fillBackground(white, blue);
 
 	computeSVDAG(scene, svdag);
+	outputSVDAGImage(svdag);
 
-	RayTracer shader(16, 0, 16);
+	RayTracer shader(16, 3, 16, 16);
 	
 	
 	auto t1 = chrono::high_resolution_clock::now();
@@ -52,17 +53,17 @@ int main(int, char* argv[]) {
 		<< " milliseconds\n";
 	
 	image.savePPM(outputFilename);
-	outputSVDAGImage(svdag);
 	getchar();
 	return 0;
 };
 
 void initializeScene(Scene& scene) {
-	scene = Scene(Vec3f(0.05f, 0.1f, 0.2f)); // Ambiant color
+	scene = Scene(Vec3f(.4f, .4f, .4f)); // Ambiant color
 
 	// Camera
 	scene.camera.set_position(Vec3f(0, 0.2f, 1.5));
 	scene.camera.set_direction(normalize(Vec3f(0, -0.2f, -1)));
+	scene.camera.set_direction(normalize(Vec3f(0, 0, -1)));
 	scene.camera.set_aspect_ratio(0.7f);
 	scene.camera.set_near(0.5f);
 	
@@ -78,14 +79,14 @@ void initializeScene(Scene& scene) {
 	scene.add_mesh(&ground);
 
 	// Material
-	m_ground = BRDF(Vec3f(0.3f, 0.7f, 1));
+	m_ground = BRDF(Vec3f(0.1f, 0.5f, .8f), 0.5f, 1, 1);
 	scene.add_material(&m_mesh);
 	scene.add_material(&m_ground);
 	scene.set_material(0, 0); // Setting material for mesh
 	scene.set_material(1, 1);
 
 	// Light
-	light = SquareLightSource(Vec3f(2.0, 2.0, 4),
+	light = SquareLightSource(Vec3f(2.0, 2.0, 1),
 		normalize(Vec3f(-1., -1., -1.)), 2.0f, Vec3f(1, 1, 1), 2.0f);
 	scene.add_light(&light);
 
@@ -98,7 +99,7 @@ void initializeScene(Scene& scene) {
 void computeSVDAG(const Scene& scene, SVDAG& svdag) {
 	auto t1 = chrono::high_resolution_clock::now();
 
-	svdag = SVDAG(scene.meshes, Vec3f(-.6,-.6,-.6), Vec3f(.6,.6,.6), max_depth);
+	svdag = SVDAG(scene.meshes, max_depth);
 
 	auto t2 = chrono::high_resolution_clock::now();
 	cout << "Process took:"
@@ -172,10 +173,10 @@ void outputSVDAGImage(const SVDAG& svdag) {
 		for (int j = 0; j < resolution; j++) {
 			float value = image.getPixelColor(i, resolution - j)[0];
 			if (value > 0) {
-				Vec3f pos = svdag.bbox.min_corner + stride * Vec3f(i, j, value * resolution);
+				Vec3f pos = svdag.bbox.min_corner + stride * Vec3f((float)i, (float)j, value * resolution);
 				Vec3f wi = normalize(Vec3f(2, 2, 4) - pos);
-				if (svdag.shadowRay(Ray(pos + svdag.min_stride * wi, wi), 100)) {
-					image.setPixelColor(i, resolution - j, Vec3f(1, 0, 0));
+				if (svdag.shadowRay(Ray(pos + 16 * dot(svdag.min_stride, wi) * wi, wi), 100)) {
+						image.setPixelColor(i, resolution - j, Vec3f(1, 0, 0));
 					/*if (i > 32)
 						cout << pos << " "<<i<<" "<< j<<" "<<endl;*/
 				}

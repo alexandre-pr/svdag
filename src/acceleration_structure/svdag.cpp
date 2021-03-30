@@ -74,8 +74,12 @@ void SVDAG::computeSVDAG(const vector<Mesh*>& meshes, bool verbose) {
 		size_t size = 0;
 		for (size_t i = 0; i < nodes.size(); i++) {
 			size += nodes[i].size() * 4;
+			if (i<max_depth - 2)
+				cout << "Level " << i <<": "<< nodes_ptr[i].size() << " nodes" << endl;
 		}
-
+		cout << "Level " << max_depth-2 << ": " << nodes[max_depth-2].size() - nodes[max_depth-1].size() << " nodes" << endl; // Remove the pointers to the next level
+		cout << "Level " << max_depth - 1 << ": " << nodes[max_depth-1].size() << " nodes" << endl; // Only childmasks
+		// max_depth is implicit (childmask of max_depth -1)
 		std::cout << "size: " << size << std::endl;
 		std::cout << "nodes: " << n_nodes << std::endl;
 	}
@@ -114,7 +118,7 @@ uint SVDAG::computeSVO(const vector<Mesh*>& meshes, const Vec3f& min_corner,
 					}
 				}
 
-				if (primitives_child.size()) { // There is an intersection: create the node
+				if (primitives_child.size()>0) { // There is an intersection: create the node
 					node[0] = set_bit(node[0], i * 4 + 2 * j + k);
 					if (max_depth > depth) {
 						uint child_ptr = computeSVO(meshes, min_corner_child, half_diagonal_child,
@@ -303,6 +307,7 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 			uint old_node_idx = nodes[depth][j];
 			nodes[depth][j] = nodes_ptr[depth+1][indirection_table[old_node_idx]];
 		}
+
 	}
 
 
@@ -315,14 +320,13 @@ void SVDAG::computeDAG(vector<vector<uint>>& nodes_ptr, bool verbose) {
 		size_t n = 0;
 		for (size_t i = 0; i < nodes_ptr.size(); i++) {
 			n += nodes_ptr[i].size();
+			cout << "Level " << i << ": "<< nodes_ptr[i].size() << " nodes" << endl;
 		}
 
 		std::cout << "size: " << size + 8 * leaves.size() << std::endl;
 		std::cout << "nodes: " << n << std::endl;
 		std::cout << "leaves: " << leaves.size() << std::endl;
 	}
-
-
 }
 
 
@@ -343,9 +347,8 @@ bool SVDAG::triangleIntersection(const Vec3f& center, const Vec3f& extent, const
 
 	for (int i = 0; i < 3; i++)
 	{
-		Vec3f n = boxNormals[i];
 		project(triangle_vertices, boxNormals[i], triangleMin, triangleMax);
-		if (triangleMax < -extent[i] || triangleMin  > extent[i])
+		if ((triangleMax < -extent[i]) || (triangleMin > extent[i]))
 			return false; // No intersection possible.
 	}
 
@@ -363,22 +366,22 @@ bool SVDAG::triangleIntersection(const Vec3f& center, const Vec3f& extent, const
 			Vec3f axis = cross(triangleEdges[i], boxNormals[j]);
 			float r = project_extent(extent, axis);
 			project(triangle_vertices, axis, triangleMin, triangleMax);
-			if (r < triangleMin || -r > triangleMax)
+			if ((r < triangleMin) || (-r > triangleMax))
 				return false; // No intersection possible
 		}
 
 	Vec3f triangle_normal = cross(p1 - p0, p2 - p0);
+	triangle_normal = normalize(triangle_normal);
 
 	// Test the triangle normal
 	float triangleOffset = dot(triangle_normal, triangle_vertices[0]);
 	float r = project_extent(extent, triangle_normal);
-	if (r < triangleOffset || -r> triangleOffset)
+	if ((r < triangleOffset) || (-r > triangleOffset))
 		return false; // No intersection possible.
 
 	// No separating axis found.
 	return true;
 }
-
 
 
 bool SVDAG::shadowRay(const Ray& ray, float t_max) const{
@@ -387,8 +390,9 @@ bool SVDAG::shadowRay(const Ray& ray, float t_max) const{
 	Vec3f stride = bbox.max_corner - bbox.min_corner;
 	AABB voxel = AABB(bbox);
 	const Vec3f& origin = ray.get_origin(); const Vec3f& direction = ray.get_direction();
-	float t = 0; Vec3f exit_entry; int exit_direction = 0; uint child_idx;
+	Vec3f exit_entry; int exit_direction = 0; uint child_idx;
 	bool firstIteration=false;
+	float t = 0;
 
 	// Find the origin location (represented as a stack of uint, from root to last node)
 	Vec3i relative_pos = relativePos(bbox.min_corner, bbox.max_corner, origin);
@@ -531,7 +535,7 @@ void stackPop(stack<pair<uint, Vec3<bool>>>& stack, Vec3f& stride, AABB& voxel, 
 // Utility functions
 //////////////////////////////////////////////////////////////////////////////////
 
-bool SVDAG::shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_direction, uint64_t leaf, const Vec3f& min_corner, 
+bool SVDAG::shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_direction, uint64_t leaf, const Vec3f& min_corner,
 	const Vec3f& max_corner, Vec3f& exit, int& exit_direction, float& t) const{
 	// Leaf traversal
 
@@ -569,7 +573,7 @@ bool SVDAG::shadowRayLeaf(const Ray& ray, const Vec3f& entry_point, int entry_di
 	}
 }
 
-bool SVDAG::shadowRayLeafInside(const Ray& ray, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner,
+bool SVDAG::shadowRayLeafInside(const Ray& ray, uint64_t leaf, const Vec3f& min_corner, const Vec3f& max_corner, 
 	Vec3f& exit, int& exit_direction, float& t) const{
 	// To be called when the ray starts from inside a leaf
 	Vec3f a =  (ray.get_origin() - min_corner) * 4/ (max_corner - min_corner);
@@ -633,7 +637,7 @@ void project(const vector<Vec3f>& points, const Vec3f& axis,
 	float& min, float& max)
 {
 	min = numeric_limits<float>::max();
-	max = numeric_limits<float>::min();
+	max = numeric_limits<float>::lowest();
 	for (const Vec3f& p : points)
 	{
 		float val = dot(axis, p);

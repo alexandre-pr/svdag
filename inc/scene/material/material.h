@@ -11,5 +11,6 @@ public:
 		const Vec3f& wi, const Vec3f& wo, const Vec3f& color) const = 0;
 	inline virtual const float& get_alpha() const = 0; // Necessary for importance sampling in BRDF
 	// It's easier to modify things here
-
+	inline virtual const Vec3f& get_albedo() const = 0;
+	inline virtual const float& get_diffuse() const = 0;
 };
